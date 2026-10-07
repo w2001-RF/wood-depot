@@ -5,6 +5,8 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 // `--mode single` produces one self-contained index.html (used for the hosted preview).
 export default defineConfig(({ mode }) => ({
+  // GitHub Pages serves from /<repo>/ — the workflow sets VITE_BASE.
+  base: process.env.VITE_BASE || '/',
   plugins: [react(), tailwindcss(), ...(mode === 'single' ? [viteSingleFile()] : [])],
   build: {
     outDir: mode === 'single' ? 'dist-single' : 'dist',
