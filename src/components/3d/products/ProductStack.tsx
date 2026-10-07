@@ -69,6 +69,8 @@ export function ProductStack({ product, mats, quality, seed = 1 }: { product: Pr
     const support: Instance[] = [];
     const pal = { slats: [] as Instance[], blocks: [] as Instance[] };
     const lumps: Instance[] = [];
+    const straps: Instance[] = [];
+    const buckles: Instance[] = [];
     const colorJitter = () => {
       const v = 0.8 + r() * 0.3;
       return new THREE.Color(v, v * (0.97 + r() * 0.04), v * (0.92 + r() * 0.06));
@@ -79,7 +81,9 @@ export function ProductStack({ product, mats, quality, seed = 1 }: { product: Pr
       // bearers
       for (const bx of [-L / 2 + 0.35, 0, L / 2 - 0.35]) support.push({ m: mat(bx, STACK.bearerH / 2, 0, 0, 0.09, STACK.bearerH, spec.depth + 0.12), c: new THREE.Color(0.7, 0.7, 0.7) });
       let y = STACK.bearerH;
+      let yBeforeTop = y;
       for (let row = 0; row < rows; row++) {
+        if (row === rows - 1) yBeforeTop = y;
         if (row > 0 && row % STACK.stickerEvery === 0) {
           if (quality !== 'low')
             for (const bx of [-L / 2 + 0.35, 0, L / 2 - 0.35])
@@ -93,9 +97,25 @@ export function ProductStack({ product, mats, quality, seed = 1 }: { product: Pr
           const z = -spec.depth / 2 + (c + 0.5) * (w + STACK.gap);
           const jx = (r() - 0.5) * 0.09;
           const flip = r() < 0.5 ? Math.PI : 0;
-          variants[(row + c) % 2].push({ m: mat(jx, y + t / 2, z, flip + (r() - 0.5) * 0.006), c: colorJitter() });
+          // sawmill tolerance: +-0.6 % length, +-1.5 % thickness, a hint of twist
+          variants[(row + c) % 2].push({ m: mat(jx, y + t / 2, z, flip + (r() - 0.5) * 0.006, 1 + (r() - 0.5) * 0.012, 1 + (r() - 0.5) * 0.03, 1, (r() - 0.5) * 0.008), c: colorJitter() });
         }
         y += t + STACK.gap;
+      }
+      // polypropylene strapping: a band around the pack every ~1.4 m, with a metal seal
+      if (quality !== 'low') {
+        const sy0 = STACK.bearerH * 0.5;
+        const sh = Math.max(0.1, yBeforeTop - sy0);
+        const bands = Math.max(2, Math.round(L / 1.4));
+        const white = new THREE.Color(1, 1, 1);
+        for (let i = 0; i < bands; i++) {
+          const bx = -L / 2 + 0.5 + ((L - 1) * (i + 0.5)) / bands + (r() - 0.5) * 0.08;
+          const d = spec.depth;
+          straps.push({ m: mat(bx, yBeforeTop + 0.002, 0, 0, 0.016, 0.003, d + 0.012), c: white });
+          straps.push({ m: mat(bx, sy0, 0, 0, 0.016, 0.003, d + 0.012), c: white });
+          for (const side of [-1, 1]) straps.push({ m: mat(bx, sy0 + sh / 2, side * (d / 2 + 0.005), 0, 0.016, sh, 0.003), c: white });
+          buckles.push({ m: mat(bx, yBeforeTop * 0.55, d / 2 + 0.008, 0, 0.03, 0.022, 0.008), c: white });
+        }
       }
     } else if (spec.kind === 'round') {
       const d = spec.pieceW;
@@ -129,7 +149,7 @@ export function ProductStack({ product, mats, quality, seed = 1 }: { product: Pr
         lumps.push({ m: mat(Math.cos(a) * rad, s * 0.6, Math.sin(a) * rad, r() * 6, s, s * 0.8, s * 1.2, r(), r()), c: new THREE.Color().setScalar(0.7 + r() * 0.5) });
       }
     }
-    return { variants, support, pal, lumps };
+    return { variants, support, pal, lumps, straps, buckles };
   }, [spec, product, quality, seed]);
 
   const segs = quality === 'low' ? 7 : quality === 'medium' ? 10 : 14;
@@ -140,6 +160,8 @@ export function ProductStack({ product, mats, quality, seed = 1 }: { product: Pr
         <Instances geometry={geo} material={pieceMaterials(product, mats, 0)} items={data.variants[0]} shadows={shadows} />
         <Instances geometry={geo} material={pieceMaterials(product, mats, 1)} items={data.variants[1]} shadows={shadows} />
         <Instances geometry={unitBox()} material={mats.sticker} items={data.support} shadows={shadows} />
+        <Instances geometry={unitBox()} material={mats.strap} items={data.straps} shadows={false} />
+        <Instances geometry={unitBox()} material={mats.steel} items={data.buckles} shadows={false} />
       </group>
     );
   }

@@ -38,6 +38,7 @@ export interface DepotMaterials {
   soil: THREE.MeshStandardMaterial;
   palletWood: THREE.MeshStandardMaterial;
   sticker: THREE.MeshStandardMaterial;
+  strap: THREE.MeshStandardMaterial;
   shaft: THREE.MeshBasicMaterial;
   paintLine: THREE.MeshStandardMaterial;
 }
@@ -81,13 +82,16 @@ export async function prepareDepotAssets(quality: QualityLevel, onProgress: (p: 
   tones.forEach((tone, ti) => {
     steps.push(() => {
       // two face variants per tone so neighbouring boards don't repeat
-      partial.woodSide[tone] = [0, 1].map((v) =>
-        std({ map: woodSideTexture(tone, S, 100 + ti * 10 + v), roughness: tone === 'charcoal' ? 0.95 : 0.82, metalness: 0 }),
-      );
+      partial.woodSide[tone] = [0, 1].map((v) => {
+        const map = woodSideTexture(tone, S, 100 + ti * 10 + v);
+        // the grain doubles as a relief map: saw marks and growth lines catch the light
+        return std({ map, bumpMap: quality === 'low' ? null : map, bumpScale: 0.7, roughness: tone === 'charcoal' ? 0.95 : 0.82, metalness: 0 });
+      });
     });
     steps.push(() => {
       partial.woodEnd[tone] = std({ map: endGrainTexture(tone, S / 2, 200 + ti), roughness: 0.9 });
-      partial.pole[tone] = std({ map: poleTexture(tone, S, 300 + ti), roughness: 0.85 });
+      const pm = poleTexture(tone, S, 300 + ti);
+      partial.pole[tone] = std({ map: pm, bumpMap: quality === 'low' ? null : pm, bumpScale: 1.2, roughness: 0.85 });
     });
   });
 
@@ -124,6 +128,7 @@ export async function prepareDepotAssets(quality: QualityLevel, onProgress: (p: 
     partial.plant = std({ color: '#4f7a3a', roughness: 0.8 });
     partial.soil = std({ color: '#5a4330', roughness: 1 });
     partial.sticker = std({ color: '#8a6a45', roughness: 0.95 });
+    partial.strap = std({ color: '#1d2a33', roughness: 0.4, metalness: 0.1 });
     partial.palletWood = std({ map: woodSideTexture('fir', 256, 77), color: '#d8c7a5', roughness: 0.9 });
   });
   steps.push(() => {
@@ -196,6 +201,7 @@ export function getMaterialsSync(quality: QualityLevel = 'medium'): DepotMateria
     soil: std({ color: '#5a4330' }),
     palletWood: std({ map: woodSideTexture('fir', 256, 77), color: '#d8c7a5', roughness: 0.9 }),
     sticker: std({ color: '#8a6a45', roughness: 0.95 }),
+    strap: std({ color: '#1d2a33', roughness: 0.4, metalness: 0.1 }),
     shaft: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 }),
     paintLine: std({ color: '#efe6d4' }),
   };

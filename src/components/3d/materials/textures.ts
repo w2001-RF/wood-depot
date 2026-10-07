@@ -76,6 +76,13 @@ export function woodSideTexture(tone: WoodTone, size: number, seed: number, vert
     ctx.fillStyle = g;
     ctx.fillRect(0, y - 30, size, 60);
   }
+  // sapwood / heartwood drift: one edge of the board is paler, as in real pine
+  const drift = ctx.createLinearGradient(0, 0, 0, size);
+  const flip = r() < 0.5;
+  drift.addColorStop(flip ? 0 : 1, `${col.light}66`);
+  drift.addColorStop(flip ? 1 : 0, `${col.dark}30`);
+  ctx.fillStyle = drift;
+  ctx.fillRect(0, 0, size, size);
   // fine grain lines with gentle waviness
   const lines = Math.round(size / 3.2);
   for (let i = 0; i < lines; i++) {
@@ -94,7 +101,27 @@ export function woodSideTexture(tone: WoodTone, size: number, seed: number, vert
     ctx.lineWidth = 0.6 + r() * 1.6;
     ctx.stroke();
   }
-  // knots — the detail that makes timber read as real
+  // resin streaks (conifers): short amber smears along the grain
+  for (let i = 0; i < 3; i++) {
+    const x = r() * size;
+    const y = r() * size;
+    ctx.strokeStyle = `rgba(190,120,40,${0.1 + r() * 0.12})`;
+    ctx.lineWidth = 2 + r() * 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 30 + r() * 90, y + (r() - 0.5) * 6);
+    ctx.stroke();
+  }
+  // rough-sawn circular-saw arcs across the grain (sold "brut de sciage")
+  for (let x = r() * 20; x < size; x += 9 + r() * 14) {
+    ctx.strokeStyle = `rgba(60,35,12,${0.03 + r() * 0.05})`;
+    ctx.lineWidth = 1 + r() * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.quadraticCurveTo(x + 14 + r() * 8, size / 2, x, size);
+    ctx.stroke();
+  }
+  // knots: the detail that makes timber read as real
   const knots = 1 + Math.floor(r() * 3);
   for (let k = 0; k < knots; k++) {
     const kx = r() * size;
@@ -136,6 +163,24 @@ export function endGrainTexture(tone: WoodTone, size: number, seed: number) {
     ctx.lineWidth = 1 + r() * 3;
     ctx.stroke();
   }
+  // drying checks radiating from the pith
+  for (let i = 0; i < 2 + Math.floor(r() * 3); i++) {
+    const ex = Math.max(0, Math.min(size, cx));
+    const ey = Math.max(0, Math.min(size, cy));
+    const ang = Math.atan2(size * 0.5 - ey, size * 0.5 - ex) + (r() - 0.5) * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex + Math.cos(ang) * size * (0.35 + r() * 0.5), ey + Math.sin(ang) * size * (0.35 + r() * 0.5));
+    ctx.strokeStyle = 'rgba(35,18,6,0.4)';
+    ctx.lineWidth = 1 + r() * 1.5;
+    ctx.stroke();
+  }
+  // darker rim: the rounded arris and saw kerf catch less light
+  const rim = ctx.createRadialGradient(size / 2, size / 2, size * 0.32, size / 2, size / 2, size * 0.75);
+  rim.addColorStop(0, 'rgba(60,30,10,0)');
+  rim.addColorStop(1, 'rgba(60,30,10,0.38)');
+  ctx.fillStyle = rim;
+  ctx.fillRect(0, 0, size, size);
   // saw marks
   for (let y = 0; y < size; y += 3) {
     ctx.fillStyle = `rgba(0,0,0,${r() * 0.04})`;
@@ -164,6 +209,17 @@ export function poleTexture(tone: WoodTone, size: number, seed: number) {
     ctx.beginPath();
     ctx.ellipse(x, y, 3 + r() * 8, h / 2, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+  // longitudinal fissures of eucalyptus bark / drying cracks
+  for (let i = 0; i < 26; i++) {
+    const x = r() * size;
+    const y0 = r() * size;
+    ctx.strokeStyle = `rgba(35,22,12,${0.18 + r() * 0.3})`;
+    ctx.lineWidth = 0.8 + r() * 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x, y0);
+    ctx.bezierCurveTo(x + (r() - 0.5) * 6, y0 + 40, x + (r() - 0.5) * 6, y0 + 90, x + (r() - 0.5) * 8, y0 + 120 + r() * 150);
+    ctx.stroke();
   }
   t.needsUpdate = true;
   return t;
@@ -287,6 +343,13 @@ export function sackTexture(size: number, kg: string) {
     ctx.fillRect(i, 0, 1, size);
     ctx.fillRect(0, i, size, 1);
   }
+  // pillow shading: filled sacks are lighter on the belly, darker at the folds
+  const belly = ctx.createLinearGradient(0, 0, size, 0);
+  belly.addColorStop(0, 'rgba(60,45,30,0.28)');
+  belly.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+  belly.addColorStop(1, 'rgba(60,45,30,0.28)');
+  ctx.fillStyle = belly;
+  ctx.fillRect(0, 0, size, size);
   ctx.fillStyle = '#1f3a2e';
   ctx.fillRect(size * 0.08, size * 0.3, size * 0.84, size * 0.4);
   ctx.fillStyle = '#f2eadb';
@@ -296,6 +359,22 @@ export function sackTexture(size: number, kg: string) {
   ctx.fillText('CHARBON DE BOIS', size / 2, size * 0.43);
   ctx.font = `700 ${size * 0.12}px "Noto Kufi Arabic", Tahoma, sans-serif`;
   ctx.fillText(`فحم · ${kg}`, size / 2, size * 0.58);
+  // stitched top seam and charcoal dust
+  ctx.strokeStyle = 'rgba(70,60,45,0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath();
+  ctx.moveTo(size * 0.03, size * 0.07);
+  ctx.lineTo(size * 0.97, size * 0.07);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const r = rng(size + kg.length);
+  for (let i = 0; i < 70; i++) {
+    ctx.fillStyle = `rgba(20,16,14,${0.05 + r() * 0.12})`;
+    ctx.beginPath();
+    ctx.ellipse(r() * size, size * (0.55 + r() * 0.45), 2 + r() * 12, 1 + r() * 6, r() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
   return finish(c, false);
 }
 

@@ -15,14 +15,31 @@ function cached<T extends THREE.BufferGeometry>(key: string, make: () => T): T {
 }
 
 /**
- * Board with length on X. UVs are rewritten in metres (1 texture tile ≈ 1.1 m)
- * so grain and knots keep real proportions on every board size.
- * Two material groups only — [end grain, sawn faces] — so each pile costs 2
- * draw calls instead of 6 (BoxGeometry's default is one group per face).
+ * Sawn board with length on X. Real timber never has razor-sharp edges: the
+ * cross-section is a rounded rectangle (arris ≈ 1–6 mm, as on machine-planed
+ * or rough-sawn stock), extruded along the length. UVs are rewritten in metres
+ * (1 texture tile ≈ 1.1 m) so grain and knots keep real proportions.
+ * Two material groups only — [end grain, sawn faces] — so each pile costs 2 draw calls.
  */
-export function boardGeometry(length: number, width: number, thickness: number): THREE.BoxGeometry {
+export function boardGeometry(length: number, width: number, thickness: number): THREE.BufferGeometry {
   return cached(`b:${length}:${width}:${thickness}`, () => {
-    const g = new THREE.BoxGeometry(length, thickness, width);
+    const hw = width / 2;
+    const ht = thickness / 2;
+    const r = Math.min(0.006, Math.min(width, thickness) * 0.12);
+    const s = new THREE.Shape();
+    s.moveTo(-hw + r, -ht);
+    s.lineTo(hw - r, -ht);
+    s.quadraticCurveTo(hw, -ht, hw, -ht + r);
+    s.lineTo(hw, ht - r);
+    s.quadraticCurveTo(hw, ht, hw - r, ht);
+    s.lineTo(-hw + r, ht);
+    s.quadraticCurveTo(-hw, ht, -hw, ht - r);
+    s.lineTo(-hw, -ht + r);
+    s.quadraticCurveTo(-hw, -ht, -hw + r, -ht);
+    // ExtrudeGeometry groups: 0 = end caps, 1 = side walls
+    const g = new THREE.ExtrudeGeometry(s, { depth: length, bevelEnabled: false, curveSegments: 2, steps: 1 });
+    g.translate(0, 0, -length / 2);
+    g.rotateY(Math.PI / 2); // length now on X, width on Z
     const pos = g.attributes.position;
     const nor = g.attributes.normal;
     const uv = g.attributes.uv;
@@ -33,19 +50,11 @@ export function boardGeometry(length: number, width: number, thickness: number):
       const z = pos.getZ(i);
       const nx = Math.abs(nor.getX(i));
       const ny = Math.abs(nor.getY(i));
-      if (nx > 0.5) {
-        uv.setXY(i, z / width + 0.5, y / thickness + 0.5); // end grain fills the end face
-      } else if (ny > 0.5) {
-        uv.setXY(i, x / T, z / T + 0.31);
-      } else {
-        uv.setXY(i, x / T, y / T + 0.67);
-      }
+      if (nx > 0.5) uv.setXY(i, z / width + 0.5, y / thickness + 0.5); // end grain fills the end face
+      else if (ny > 0.5) uv.setXY(i, x / T, z / T + 0.31);
+      else uv.setXY(i, x / T, y / T + 0.67);
     }
     uv.needsUpdate = true;
-    // BoxGeometry index order is +x, −x, +y, −y, +z, −z (6 indices each, 1 segment)
-    g.clearGroups();
-    g.addGroup(0, 12, 0);
-    g.addGroup(12, 24, 1);
     return g;
   });
 }
